@@ -1,0 +1,80 @@
+@startuml
+' Автообзвон: оценка качества выезда и автозакрытие заявок
+' Обезличенная версия для публичного репозитория
+
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam defaultFontName Segoe UI
+skinparam defaultFontSize 13
+skinparam ArrowColor #4A6785
+skinparam ArrowFontSize 11
+skinparam sequence {
+    ParticipantBorderColor #4A6785
+    ParticipantBackgroundColor #F4F7FB
+    ParticipantFontColor #1F3A5F
+    ActorBorderColor #3D7A54
+    ActorBackgroundColor #F1F9F3
+    LifeLineBorderColor #A8B8CC
+    GroupBorderColor #7A6BA8
+    GroupBackgroundColor #F6F3FC
+}
+
+title Автообзвон: оценка качества выезда и автозакрытие заявки
+
+actor "Монтажник" as M
+participant "ERP" as ERP
+participant "Оркестратор\n(n8n)" as N8N
+participant "Голосовой шлюз\n(внешний сервис)" as GW
+actor "Абонент" as C
+
+M -> ERP : закрывает заявку\n«выезд выполнен»
+activate ERP
+ERP -> ERP : обработчик события:\nсоздать дочернюю заявку «оценка»\n(копирует бренд, телефон, адрес;\nсчётчик попыток = 0)
+deactivate ERP
+
+... дважды в сутки по расписанию ...
+
+N8N -> N8N : проверка календаря\n(в праздничные дни обзвон не идёт)
+N8N -> ERP : запросить заявки,\nготовые к обзвону
+activate ERP
+ERP -> ERP : отбор: попытки не исчерпаны,\nразрешённое время суток
+ERP --> N8N : список заявок\n+ бренд, телефон
+deactivate ERP
+
+loop по одной заявке, с паузой
+    N8N -> N8N : собрать текст озвучки\nи голосовое меню 1–5\nдля нужного бренда
+    N8N -> GW : инициировать голосовой вызов
+    GW -> C : звонок роботом:\n«оцените работу от 1 до 5»
+    alt абонент нажал цифру
+        C -> GW : тональный набор 1–5
+        GW -> N8N : колбэк: оценка,\nид заявки, ид звонка
+        N8N -> ERP : передать оценку
+        activate ERP
+        ERP -> ERP : проверки: заявка не закрыта,\nродитель найден и не закрыт,\nстатусы соответствуют ожидаемым
+        alt оценка 4–5
+            ERP -> ERP : родительская заявка → «подтверждено»
+        else оценка 1–3
+            ERP -> ERP : родительская заявка → «новая»,\nпричина в начало описания
+        end
+        ERP -> ERP : оценка в параметр обеих заявок,\nссылка на запись разговора — запиской
+        deactivate ERP
+    else не ответил
+        GW --> N8N : нет ответа
+        N8N -> ERP : увеличить счётчик попыток
+    end
+end
+
+... после исчерпания попыток ...
+
+ERP -> ERP : заявка подтверждается\nавтоматически
+
+legend bottom
+  **Правила**
+  ====
+  • три попытки дозвона, затем автоподтверждение
+  • обзвон только в разрешённые часы, в праздники не идёт
+  • низкая оценка возвращает заявку в работу, а не создаёт новую
+  • оценка пишется в дочернюю и родительскую заявку
+endlegend
+
+@enduml

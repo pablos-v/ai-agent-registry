@@ -1,0 +1,11 @@
+{
+  "LDAP_SERVER": "ldap.example.local",
+  "LDAP_PORT": 636,
+  "LDAP_USE_SSL": true,
+  "LDAP_DOMAIN": "example.local",
+  "LDAP_BASE_DN": "DC=example,DC=local",
+  "LDAP_SEARCH_BASE": "OU=Users,DC=example,DC=local",
+  "LDAP_GROUPS_BASE": "OU=Groups,DC=example,DC=local",
+  "LDAP_SERVICE_USER": "svc-mcp-reader",
+  "LDAP_TIMEOUT": 10
+}

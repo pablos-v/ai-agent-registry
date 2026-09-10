@@ -1,0 +1,68 @@
+@startuml
+' СМС-информирование по заявкам на подключение — верхнеуровневая схема
+' Обезличенная версия для публичного репозитория
+
+skinparam backgroundColor #FFFFFF
+skinparam nodesep 25
+skinparam ranksep 35
+skinparam shadowing false
+skinparam defaultFontName Segoe UI
+skinparam defaultFontSize 13
+skinparam ArrowColor #4A6785
+skinparam ArrowFontSize 12
+skinparam rectangle {
+    BorderColor #4A6785
+    BackgroundColor #F4F7FB
+    FontColor #1F3A5F
+    roundCorner 10
+}
+skinparam cloud {
+    BorderColor #7A6BA8
+    BackgroundColor #F6F3FC
+}
+skinparam actor {
+    BorderColor #3D7A54
+    BackgroundColor #F1F9F3
+}
+
+title СМС-информирование клиентов по заявкам на подключение
+
+rectangle "**ERP**" as ERP {
+    rectangle "Заявка на подключение\n«позвонить» / «нет техвозможности»" as P45
+    rectangle "Планировщик\nраз в несколько минут" as SCH
+    rectangle "Процесс-уведомление\n(технический)" as NP
+    rectangle "Вкладка «СМС-уведомления»\nистория + ручная отправка" as TAB
+}
+
+rectangle "**Оркестратор (n8n)**" as N8N {
+    rectangle "Отправка\nот имени бренда" as SEND
+    rectangle "Приём колбэков\nо доставке" as CB
+}
+
+cloud "**Внешний СМС-шлюз**" as GW
+actor "Клиент" as CLIENT
+rectangle "Витрина\nдля отчётности" as BI
+
+P45 -down-> SCH : подходит\nпод сценарий
+SCH -down-> NP : создаёт
+NP -down-> SEND : бренд, номер, текст
+SEND -down-> GW : отправка
+GW -down-> CLIENT : СМС
+GW -left-> CB : статус доставки
+SEND -left-> NP : ид сообщения,\nсегменты, стоимость
+CB -up-> NP : доставлено /\nне доставлено
+NP -up-> P45 : «уведомлён»\nтолько после доставки
+NP .right.> TAB : история по заявке
+NP .right.> BI : связь по ид
+
+legend bottom
+  **Ключевые правила**
+  ====
+  • СМС уходит, если до даты выезда не меньше суток
+  • одно уведомление на заявку в каждом сценарии
+  • дату сдвинули более чем на сутки — уведомляем заново
+  • статус заявки меняется только по факту доставки
+  • окно отправки в дневные часы, порциями, с суточным лимитом
+endlegend
+
+@enduml

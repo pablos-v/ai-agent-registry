@@ -1,0 +1,100 @@
+@startuml
+' Контур AI-агентов: слои и связи
+' Обезличенная версия для публичного репозитория
+
+skinparam backgroundColor #FFFFFF
+skinparam nodesep 22
+skinparam ranksep 30
+skinparam shadowing false
+skinparam defaultFontName Segoe UI
+skinparam defaultFontSize 13
+skinparam ArrowColor #4A6785
+skinparam ArrowFontSize 11
+skinparam rectangle {
+    BorderColor #4A6785
+    BackgroundColor #F4F7FB
+    FontColor #1F3A5F
+    roundCorner 10
+}
+skinparam cloud {
+    BorderColor #7A6BA8
+    BackgroundColor #F6F3FC
+    FontColor #3D2F5F
+}
+skinparam actor {
+    BorderColor #3D7A54
+    BackgroundColor #F1F9F3
+}
+skinparam database {
+    BorderColor #8A6A3D
+    BackgroundColor #FBF6EE
+}
+
+title Контур AI-агентов: от триггера до системы
+
+actor "Человек" as HUMAN
+rectangle "Событие\nвнешней системы" as EVENT
+rectangle "Расписание" as CRON
+
+rectangle "**Оркестратор**" as ORCH {
+    rectangle "Классификация задачи\nи извлечение параметров\n(строгая схема)" as CLS
+    rectangle "Маршрутизация\nк профильному агенту" as ROUTE
+    rectangle "Журнал операций,\nидемпотентность" as LOG
+}
+
+rectangle "**Агенты**" as AGENTS {
+    rectangle "billing-ops\nучётные записи,\nправа, договоры" as A1
+    rectangle "erp-data\nпроцессы,\nаналитика" as A2
+    rectangle "knowledge-base\nпоиск и ведение\nбазы знаний" as A3
+}
+
+rectangle "**Коннекторы**\nтипизированные операции" as CONN {
+    rectangle "API систем\n(SOAP / REST)" as C1
+    rectangle "MCP-серверы\nкаталог, таблицы" as C2
+    rectangle "SQL\n(чтение)" as C3
+}
+
+cloud "Биллинг ×5" as S1
+cloud "ERP" as S2
+cloud "Каталог\nпользователей" as S3
+cloud "База знаний" as S4
+
+database "Аудит-лог" as AUDIT
+
+HUMAN -down-> CLS
+EVENT -down-> CLS
+CRON -down-> CLS
+
+CLS -down-> ROUTE
+ROUTE -down-> A1
+ROUTE -down-> A2
+ROUTE -down-> A3
+
+A1 -down-> C1
+A1 -down-> C2
+A2 -down-> C3
+A2 -down-> C1
+A3 -down-> C1
+
+C1 -down-> S1
+C1 -down-> S2
+C2 -down-> S3
+C1 -down-> S4
+C3 -down-> S2
+
+ROUTE -right-> LOG
+LOG -down-> AUDIT
+
+HUMAN -[#3D7A54]left-> ROUTE : подтверждение\nперед изменением
+
+legend bottom
+  **Границы контура**
+  ====
+  • модель классифицирует и извлекает — решение принимает код
+  • агент вызывает операции из белого списка, не произвольные команды
+  • изменение данных — только после подтверждения человеком
+  • секреты живут в окружении сервиса и не попадают в контекст модели
+  • каждое действие оставляет запись в аудит-логе
+endlegend
+
+@enduml

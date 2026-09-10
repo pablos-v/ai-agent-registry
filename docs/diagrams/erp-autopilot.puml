@@ -1,0 +1,85 @@
+@startuml
+' Автопилот задач ERP — архитектура
+' Обезличенная версия для публичного репозитория
+
+skinparam backgroundColor #FFFFFF
+skinparam nodesep 22
+skinparam ranksep 28
+skinparam shadowing false
+skinparam defaultFontName Segoe UI
+skinparam defaultFontSize 13
+skinparam ArrowColor #4A6785
+skinparam ArrowFontSize 11
+skinparam rectangle {
+    BorderColor #4A6785
+    BackgroundColor #F4F7FB
+    FontColor #1F3A5F
+    roundCorner 10
+}
+skinparam cloud {
+    BorderColor #7A6BA8
+    BackgroundColor #F6F3FC
+    FontColor #3D2F5F
+}
+skinparam actor {
+    BorderColor #3D7A54
+    BackgroundColor #F1F9F3
+}
+skinparam database {
+    BorderColor #8A6A3D
+    BackgroundColor #FBF6EE
+}
+
+title Автопилот задач ERP: архитектура
+
+cloud "**ERP**" as ERP {
+    rectangle "Задача назначена\nна исполнителя" as TASK
+    rectangle "Обработчик события\n«состав исполнителей изменён»" as CATCH
+}
+
+rectangle "**Сервис-автопилот**" as SVC {
+    rectangle "Приём события,\nпроверка идемпотентности" as IDEM
+    rectangle "Классификация и извлечение\nпараметров (модель)" as LLM
+    rectangle "Проверки допустимости\n(детерминированный код)" as CHECK
+    rectangle "Решение об автономности\n(пороги по типу операции)" as GATE
+    rectangle "Верификация результата" as VERIFY
+}
+
+cloud "**Биллинг**" as BILL {
+    rectangle "Собственный обработчик\nсоставных операций\n(транзакция, проверки)" as HOOK
+    rectangle "Штатное API\n(учётные записи)" as API
+}
+
+actor "Человек" as HUMAN
+database "Журнал операций\nи аудит" as AUDIT
+
+TASK -down-> CATCH : смена исполнителя
+CATCH -down-> IDEM : вебхук
+IDEM -down-> LLM : карточка задачи
+IDEM -[#8A6A3D]right-> AUDIT : уже обработано?
+LLM -down-> CHECK : тип операции\n+ параметры
+CHECK -down-> GATE : проверки пройдены
+CHECK -[#B04A4A]right-> HUMAN : проверка не прошла —\nэскалация
+LLM -[#B04A4A]left-> HUMAN : тип не распознан —\nэскалация
+
+GATE -down-> HOOK : перенос средств
+GATE -down-> API : операции с учётными записями
+GATE -[#3D7A54]right-> HUMAN : выше порога —\nплан на подтверждение
+HUMAN -[#3D7A54]down-> GATE : подтверждено
+
+HOOK -down-> VERIFY
+API -down-> VERIFY
+VERIFY -up-> TASK : записка с отчётом,\nзатем закрытие процесса
+VERIFY -right-> AUDIT : что выполнено,\nсостояние «до» и «после»
+
+legend bottom
+  **Ключевые решения**
+  ====
+  • номера договоров — из связей процесса; из текста извлекается только сумма
+  • составные денежные операции идут через собственный обработчик — ради транзакции
+  • повышение прав не автоматизируется: только подготовка плана
+  • блокировка учётной записи автономна — она снижает доступ и обратима
+  • отчёт прикладывается до смены статуса, иначе процесс переоткроется
+endlegend
+
+@enduml
